@@ -508,3 +508,176 @@ function Lib:Toggle(D, text, default, cb)
         TweenService:Create(Track, inf, {BackgroundColor3 = on and C.AccentDim or C.Background}):Play()
     end
     if state then apply(true, false) end
+
+    Click.MouseButton1Click:Connect(function()
+        state = not state; apply(state, true)
+        if cb then local ok, err = pcall(cb, state); if not ok then warn("[DarkMenuUI] Toggle:", err) end end
+    end)
+    Click.MouseEnter:Connect(function()
+        tween(H, 0.15, {BackgroundColor3 = C.ElementHover, BackgroundTransparency = 0})
+        tween(s, 0.15, {Transparency = 0.3, Color = C.StrokeBright})
+    end)
+    Click.MouseLeave:Connect(function()
+        tween(H, 0.15, {BackgroundColor3 = C.Element, BackgroundTransparency = 0.15})
+        tween(s, 0.15, {Transparency = 0.55, Color = C.Stroke})
+    end)
+
+    return {
+        Set = function(v) state = v and true or false; apply(state, true) end,
+        Get = function() return state end,
+    }
+end
+
+function Lib:Slider(D, text, min, max, default, cb)
+    min, max = min or 0, max or 100
+    default = math.clamp(default or min, min, max)
+    local value = default
+
+    local H = make("Frame", {Size = UDim2.new(1, 0, 0, 44), ZIndex = 8}, D.Page)
+    corner(H, 5); local s = styleEl(H)
+
+    make("TextLabel", {Size = UDim2.new(1, -80, 0, 18), Position = UDim2.fromOffset(12, 4),
+        BackgroundTransparency = 1, Text = text, TextColor3 = C.Text, Font = C.Font, TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 9}, H)
+
+    local VB = make("Frame", {Size = UDim2.fromOffset(50, 16), Position = UDim2.new(1, -62, 0, 5),
+        BackgroundColor3 = C.Background, BackgroundTransparency = 0.3, ZIndex = 9}, H)
+    corner(VB, 3)
+
+    local VL = make("TextLabel", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+        Text = tostring(value), TextColor3 = C.Text, Font = C.FontBold, TextSize = 11, ZIndex = 10}, VB)
+
+    local Bg = make("Frame", {Size = UDim2.new(1, -24, 0, 6), Position = UDim2.new(0, 12, 1, -12),
+        BackgroundColor3 = C.Background, BackgroundTransparency = 0.3, ZIndex = 9}, H)
+    corner(Bg, 3)
+
+    local Fill = make("Frame", {Size = UDim2.new((value - min) / (max - min), 0, 1, 0),
+        BackgroundColor3 = C.Accent, ZIndex = 10}, Bg)
+    corner(Fill, 3)
+
+    local Knob = make("Frame", {Size = UDim2.fromOffset(12, 12), AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new((value - min) / (max - min), 0, 0.5, 0), BackgroundColor3 = C.Text, ZIndex = 11}, Bg)
+    corner(Knob, 6)
+    make("UIStroke", {Color = C.StrokeBright}, Knob)
+
+    local dragging = false
+    local function setX(x)
+        local rel = math.clamp((x - Bg.AbsolutePosition.X) / Bg.AbsoluteSize.X, 0, 1)
+        value = math.floor((min + (max - min) * rel) * 100 + 0.5) / 100
+        Fill.Size = UDim2.new(rel, 0, 1, 0)
+        Knob.Position = UDim2.new(rel, 0, 0.5, 0)
+        VL.Text = tostring(value)
+        if cb then local ok, err = pcall(cb, value); if not ok then warn("[DarkMenuUI] Slider:", err) end end
+    end
+    Bg.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; setX(i.Position.X)
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            setX(i.Position.X)
+        end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+
+    H.MouseEnter:Connect(function()
+        tween(H, 0.15, {BackgroundTransparency = 0.05})
+        tween(s, 0.15, {Transparency = 0.4, Color = C.StrokeBright})
+    end)
+    H.MouseLeave:Connect(function()
+        tween(H, 0.15, {BackgroundTransparency = 0.15})
+        tween(s, 0.15, {Transparency = 0.55, Color = C.Stroke})
+    end)
+
+    if cb then pcall(cb, value) end
+
+    return {
+        Set = function(v)
+            v = math.clamp(v, min, max); value = v
+            local rel = (v - min) / (max - min)
+            Fill.Size = UDim2.new(rel, 0, 1, 0)
+            Knob.Position = UDim2.new(rel, 0, 0.5, 0)
+            VL.Text = tostring(v)
+            if cb then pcall(cb, v) end
+        end,
+        Get = function() return value end,
+    }
+end
+
+function Lib:Dropdown(D, text, options, default, cb)
+    options = options or {}
+    local selected = default or options[1]
+
+    local H = make("Frame", {Size = UDim2.new(1, 0, 0, 32), ZIndex = 8}, D.Page)
+    corner(H, 5); local s = styleEl(H)
+
+    make("TextLabel", {Size = UDim2.new(1, -140, 1, 0), Position = UDim2.fromOffset(12, 0),
+        BackgroundTransparency = 1, Text = text, TextColor3 = C.Text, Font = C.Font, TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 9}, H)
+
+    local VL = make("TextLabel", {Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(1, -120, 0, 0),
+        BackgroundTransparency = 1, Text = tostring(selected), TextColor3 = C.SubText, Font = C.Font,
+        TextSize = 12, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 9}, H)
+
+    make("TextLabel", {Size = UDim2.fromOffset(12, 12), Position = UDim2.new(1, -18, 0.5, -6),
+        BackgroundTransparency = 1, Text = "▼", TextColor3 = C.SubText, Font = C.IconFont,
+        TextSize = 8, ZIndex = 9}, H)
+
+    local Click = make("TextButton", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 11}, H)
+    Click.MouseEnter:Connect(function()
+        tween(H, 0.15, {BackgroundColor3 = C.ElementHover, BackgroundTransparency = 0})
+        tween(s, 0.15, {Transparency = 0.3, Color = C.StrokeBright})
+    end)
+    Click.MouseLeave:Connect(function()
+        tween(H, 0.15, {BackgroundColor3 = C.Element, BackgroundTransparency = 0.15})
+        tween(s, 0.15, {Transparency = 0.55, Color = C.Stroke})
+    end)
+    Click.MouseButton1Click:Connect(function()
+        openDD(H, options, selected, function(chosen)
+            selected = chosen
+            VL.Text = tostring(selected)
+            if cb then local ok, err = pcall(cb, selected); if not ok then warn("[DarkMenuUI] Dropdown:", err) end end
+        end)
+    end)
+
+    return {
+        Set = function(v)
+            if table.find(options, v) then
+                selected = v; VL.Text = tostring(v)
+                if cb then pcall(cb, selected) end
+            end
+        end,
+        Get = function() return selected end,
+        SetOptions = function(o) options = o or {} end,
+    }
+end
+
+-- ============ MINIMIZE + TOGGLE ============
+local minimized = false
+local origSize = C.Size
+MinimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    tween(Main, 0.25, {Size = minimized and UDim2.new(0, origSize.X.Offset, 0, 38) or origSize})
+    Sidebar.Visible = not minimized
+    Content.Visible = not minimized
+    Divider.Visible = not minimized
+    Pattern.Visible = not minimized
+end)
+
+UIS.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == C.ToggleKey then
+        Main.Visible = not Main.Visible
+        Shadow.Visible = Main.Visible
+    end
+end)
+
+-- ============ PUBLIC ============
+Lib.Notify = notify
+Lib.Config = C
+Lib.Gui = Gui
+
+return Lib
