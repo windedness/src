@@ -1,5 +1,5 @@
 --[[
-    DarkMenuUI v3.3 — Full
+    DarkMenuUI v3.4 — Full
     Tabs • Button • Toggle • Slider • Dropdown • Notifications
     GitHub-ready (loadstring).
 
@@ -11,6 +11,10 @@
         Tab:Slider("Speed", 16, 200, 16, function(v) print(v) end)
         Tab:Dropdown("Mode", {"A","B"}, "A", function(v) print(v) end)
         UI.Notify("Что-то случилось!")
+
+    Changelog v3.4:
+        - Round bottom corners of main window
+        - Removed Y-axis clamp on drag (can move freely up)
 --]]
 
 local Players          = game:GetService("Players")
@@ -35,6 +39,7 @@ local C = {
     Font = Enum.Font.GothamMedium,
     FontBold = Enum.Font.GothamBold,
     IconFont = Enum.Font.SourceSansBold,
+    CornerRadius = 10,
 
     Background   = Color3.fromRGB(28, 28, 31),
     Background2  = Color3.fromRGB(36, 36, 40),
@@ -91,13 +96,13 @@ local Shadow = make("Frame", {
     Size = C.Size, Position = C.Position, AnchorPoint = C.AnchorPoint,
     BackgroundColor3 = C.Shadow, BackgroundTransparency = 0.6, BorderSizePixel = 0, ZIndex = 0,
 }, Gui)
-corner(Shadow, 12)
+corner(Shadow, C.CornerRadius + 2)
 
 local Main = make("Frame", {
     Size = C.Size, Position = C.Position, AnchorPoint = C.AnchorPoint,
     BackgroundColor3 = C.Background, BorderSizePixel = 0, Active = true, ClipsDescendants = true,
 }, Gui)
-corner(Main, 10)
+corner(Main, C.CornerRadius)
 stroke(Main, C.Stroke, 0.2)
 make("UIGradient", {Rotation = 135, Color = ColorSequence.new(C.Background2, C.Background)}, Main)
 
@@ -154,7 +159,7 @@ end)
 
 -- ============ HEADER ============
 local Header = make("Frame", {Size = UDim2.new(1, 0, 0, 38), BackgroundColor3 = C.Header, BorderSizePixel = 0, ZIndex = 8}, Main)
-corner(Header, 10)
+corner(Header, C.CornerRadius)
 make("Frame", {Size = UDim2.new(1, 0, 0, 12), Position = UDim2.new(0, 0, 1, -12), BackgroundColor3 = C.Header, BorderSizePixel = 0, ZIndex = 8}, Header)
 make("Frame", {Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, -1), BackgroundColor3 = C.StrokeBright, BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 9}, Header)
 
@@ -192,19 +197,17 @@ local MinimizeBtn = headerBtn("—")
 local CloseBtn    = headerBtn("×")
 CloseBtn.MouseButton1Click:Connect(function() Gui:Destroy() end)
 
--- ============ DRAG ============
+-- ============ DRAG (без Y-ограничения) ============
 do
     local dragging, dragStart, startPos
     local function begin(i) dragging = true; dragStart = i.Position; startPos = Main.Position end
     local function update(i)
         if not dragging then return end
         local d = i.Position - dragStart
-        local vp = workspace.CurrentCamera.ViewportSize
-        local w = Main.AbsoluteSize.X
-        Main.Position = UDim2.new(startPos.X.Scale,
-            math.clamp(startPos.X.Offset + d.X, -w*0.6, vp.X - w*0.4),
-            startPos.Y.Scale,
-            math.clamp(startPos.Y.Offset + d.Y, 0, vp.Y - 30))
+        Main.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + d.X,
+            startPos.Y.Scale, startPos.Y.Offset + d.Y
+        )
     end
     local function finish() dragging = false end
     Header.InputBegan:Connect(function(i)
@@ -223,15 +226,16 @@ do
 end
 
 -- ============ SIDEBAR / CONTENT ============
-local Sidebar = make("Frame", {Size = UDim2.new(0, 120, 1, -38), Position = UDim2.new(0, 0, 0, 38),
+-- Высота уменьшена на 10px снизу (-48 вместо -38), чтобы открыть закругление Main
+local Sidebar = make("Frame", {Size = UDim2.new(0, 120, 1, -48), Position = UDim2.new(0, 0, 0, 38),
     BackgroundColor3 = C.Sidebar, BorderSizePixel = 0, ZIndex = 6}, Main)
 make("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, Sidebar)
 make("UIPadding", {PaddingTop = UDim.new(0, 8), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingBottom = UDim.new(0, 8)}, Sidebar)
 
-make("Frame", {Size = UDim2.new(0, 1, 1, -38), Position = UDim2.new(0, 120, 0, 38),
+make("Frame", {Size = UDim2.new(0, 1, 1, -48), Position = UDim2.new(0, 120, 0, 38),
     BackgroundColor3 = C.Stroke, BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 6}, Main)
 
-local Content = make("Frame", {Size = UDim2.new(1, -121, 1, -38), Position = UDim2.new(0, 121, 0, 38),
+local Content = make("Frame", {Size = UDim2.new(1, -121, 1, -48), Position = UDim2.new(0, 121, 0, 38),
     BackgroundTransparency = 1, ZIndex = 6}, Main)
 
 -- ============ NOTIFICATIONS ============
